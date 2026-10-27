@@ -10,11 +10,11 @@ private:
     std::vector<Vec4> norms = {};
     std::vector<Vec2> tex = {};
 
-    std::vector<int> facet_vrt = {};
-    std::vector<int> facet_nrm = {};
-    std::vector<int> facet_tex = {};
+    std::vector<Face> facet_vrt = {};
 
     TGAImage normal_map = {};
+    TGAImage diffuse_map = {};
+    TGAImage specular_map = {};
 
 public:
     Model(const std::string& filename);
@@ -26,4 +26,7 @@ public:
     [[nodiscard]] Vec4 normal(const int& iface, const int& ivert) const;
     [[nodiscard]] Vec4 normal(const Vec2& uv) const;
     [[nodiscard]] Vec2 uv(const int& iface, const int& nthvert) const;
+
+    const TGAImage& diffuse() const;
+    const TGAImage& specular() const;
 };

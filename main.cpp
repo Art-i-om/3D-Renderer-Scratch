@@ -21,38 +21,32 @@ std::uniform_int_distribution<int> dist(0, 255);
 
 struct PhongShader : IShader {
     const Model& model;
-    Vec3 l;
-    Vec3 tri[3];
-    Vec3 varying_nrm[3];
+    Vec4 l;
+    Vec2 varying_uv[3];
 
     PhongShader(const Vec3 light, const Model& m) : model(m) {
-        l = normalized((ModelView * Vec4{light.x, light.y, light.z, 0.}).xyz());
+        l = normalized(ModelView * Vec4{light.x, light.y, light.z, 0.});
     }
 
     virtual Vec4 vertex(const int face, const int vert) {
-        Vec3 v = model.vert(face, vert);
-        Vec3 n = model.normal(face, vert);
-        varying_nrm[vert] = (ModelView.invert_transpose() * Vec4{n.x, n.y, n.z}).xyz();
-        Vec4 gl_Position = ModelView * Vec4{v.x, v.y, v.z, 1.0};
-        tri[vert] = gl_Position.xyz();
+        varying_uv[vert] = model.uv(face, vert);
+        Vec4 gl_Position = ModelView * model.vert(face, vert);
         return Perspective * gl_Position;
     }
 
     virtual std::pair<bool, TGAColor> fragment(const Vec3 &bar) const {
-        TGAColor gl_FragColor = {255, 255, 255, 255};
         // Vec3 n = normalized(cross(tri[1] - tri[0], tri[2] - tri[0]));
-        Vec3 n = normalized(
-            varying_nrm[0] * bar[0] +
-            varying_nrm[1] * bar[1] +
-            varying_nrm[2] * bar[2]
-        );
-        Vec3 r = normalized(n * (n * l) * 2 - l);
-        double ambient = .3;
-        double diff = std::max(0., n * l);
-        double spec = std::pow(std::max(r.z, 0.), 35);
+        Vec2 uv = varying_uv[0] * bar[0] + varying_uv[1] * bar[1] + varying_uv[2] * bar[2];
+        Vec4 n = normalized(ModelView.invert_transpose() * model.normal(uv));
+        Vec4 r = normalized(n * (n * l)*2 - l);
+        double ambient = .4;
+        double diff = 1.*std::max(0., n * l);
+        double spec = (3.*sample2D(model.specular(), uv)[0] / 255.) * std::pow(std::max(r.z, 0.), 35);
+
+        TGAColor gl_FragColor = sample2D(model.diffuse(), uv);
 
         for (int channel : {0, 1, 2}) {
-            gl_FragColor[channel] *= std::min(1.0, ambient + .4 * diff + .9 * spec);
+            gl_FragColor[channel] = std::min<int>(255, gl_FragColor[channel] * (ambient + diff + spec));
         }
 
         return {false, gl_FragColor};
